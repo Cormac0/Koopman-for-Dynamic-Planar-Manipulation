@@ -7,8 +7,7 @@ Controlling robots that dynamically engage in contact with their environment is 
 ## Code Structure
 The code for the manipulation experiments are structured as follows:
 1. A Control-Coherent Koopman (CCK) implementation for a square-slider system.
-2. A CCK implementation for a circle-slider system.
-3. A baseline bilinear Koopman implementation for a circle-slider system.
+2. A CCK implementation for a circle-slider system. This folder includes a bilinear Koopman baseline for comparisons.
 
 A file named `planar_pusher.py` contains the nonlinear dynamic model used to simulate the pusher-slider systems of interest, while a pair of data generation files `GenerateData_main.py` and `GenerateData_subset.py` are used to create training data. The deep Koopman networks (DKNs) used in this work are produced within specified `nn_*` folders. The models used to produce the results in the paper are saved in this repository, as are a selection of model checkpoints.
 
