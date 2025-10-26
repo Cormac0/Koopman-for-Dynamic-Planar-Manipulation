@@ -1,1 +1,0 @@
-Taken from planar_pushing/simple_friction/contactk_100_smallslider
