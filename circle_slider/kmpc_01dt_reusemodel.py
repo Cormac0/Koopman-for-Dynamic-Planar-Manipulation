@@ -473,9 +473,9 @@ def rotation_transform(state, ref_traj, theta, center):
     return np.array([x,y,p1,p2_rot,xdot_rot[0],xdot_rot[1]]), ref_xy_array_rot
 
 if __name__ == '__main__':
-    dir = 'results/BigFriction_'+str(T)+'_'
+    dir = 'results/circleslider_'+str(T)+'_'
     RBF_model = False
-    SAVE = False
+    SAVE = True
     kmpc_run = True
     num_states = 4
     dt = 0.1
@@ -832,5 +832,7 @@ if __name__ == '__main__':
     plt.title('KMPC Times')
     plt.ylabel('Time (s)')
     plt.legend(['KMPC','Python1','Python2','Gurobi'])
+    if SAVE:
+        plt.savefig(dir+'kmpc_times.png')
     plt.show()
     print("Done.")

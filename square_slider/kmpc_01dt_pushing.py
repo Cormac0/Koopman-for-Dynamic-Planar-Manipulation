@@ -21,15 +21,6 @@ import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 # %%
-#T = 2
-#T = 3 # 0.003 cost
-#T = 4
-#T = 5 # 0.017 cost
-#T = 7
-#T = 9 # 0.14 cost
-#T = 7
-#T = 3
-
 T = 3
 NUMERICAL_ERROR_LIST = []
 
@@ -492,10 +483,8 @@ if __name__ == '__main__':
     env = gp.Env(empty=True)
     env.setParam('OutputFlag', 0)
     env.start()
-    dir = 'results/shove2_'+str(T)+'_'
-    RBF_model = False
-    #conduit_traj = np.load('pusher_trajectory.npy') # Note that this has velocities in the xy frame
-    SAVE = False
+    dir = 'results/push_'+str(T)+'_'
+    SAVE = True
     kmpc_run = True
     num_states = 6
     dt = 0.1
@@ -504,24 +493,12 @@ if __name__ == '__main__':
     max_timesteps = 200
 
     conduit_traj = np.zeros((max_timesteps,num_states+2))
-    # max_timesteps = 1000
-    # conduit_traj = np.zeros((max_timesteps,num_states+2))
     conduit_traj[:max_timesteps,0] = np.arange(0,max_timesteps)*3*0.7*dt/max_timesteps
-    #conduit_traj[:max_timesteps,0] = np.arange(0,max_timesteps)*0.01*dt
-
-    #conduit_traj[:100,:] = np.load('pusher_trajectory.npy')
-    #max_timesteps = 100
 
     # Load the model
-    #num_obs = 5000
     num_obs = 100
     model = NeuralNetwork(N_x = num_states, N_e = num_obs, N_h = 32)
-    #checkpoint_stab = torch.load('nn_multistep_loss_10_3_small_wpos/model.pt')
     checkpoint_stab = torch.load('nn_alt_loss/model.pt')
-    # checkpoint_stab = torch.load('nn_alt_loss_evenlessdata_smallernet/model.pt')
-    # checkpoint_stab = torch.load('vary_datasize/lessdata_10/2740055100obsdatabiggerbatch_model_900.pt')
-    #checkpoint_stab = torch.load('nn_dynamic_pushing/model.pt')
-    #checkpoint_stab = torch.load('nn/model.pt')
     model.load_state_dict(checkpoint_stab['model_dict'])
     model.to(device)
 
@@ -534,27 +511,12 @@ if __name__ == '__main__':
     max_energy = None
     init_state = np.array(
         [0, 0.05, 0, -(block_length/2), 0, 0, 0, 0])
-    # init_state = np.array(
-    #     [0, -block_length/3, 0, -block_length/2, 0, 0, 0, 0])
-    # init_state = np.array(
-    #     [0, 0, np.deg2rad(10), -block_length/2, 0, 0, 0, 0])
-    # init_state = np.array(
-    #     [0, 0.02, 0, -block_length/2, 0, 0, 0, 0, -block_length/2, 0, 0, 0]
-    # )  # [x, y, theta, px, py, x_dot, y_dot, theta_dot]
     pusher = Pusher(block_length, mass_block, mu_t, mu_p, init_state)
     
 
     # Extract the A matrix from the model
     A = model.A.weight.detach().cpu().numpy()
-    #plt.imshow(A)
-    # A[1,:] = np.zeros(A.shape[1])
-    # A[2,:] = np.zeros(A.shape[1])
-    # A[1,1] = 1.
-    # A[2,2] = 1.
-    #A = np.load('data/random/A.npy')
     print('A shape:', A.shape)
-    #B_diag = np.diag(10*np.ones(6))
-    #B_diag = np.diag(np.array([1,1]))
     B_diag = np.diag(np.array([1,1]))
     B = np.zeros((2,A.shape[1]))
     B[:,1:3] = B_diag
@@ -565,8 +527,6 @@ if __name__ == '__main__':
     x_init = init_state
     x_ref = x_init
 
-    #x_init_body = pusher.Convert_to_body_vel([x_init])[0]
-    #x_ref_body = pusher.Convert_to_body_vel([x_ref])[0]
     xi = calculate_xi_wpos(x_init, model)
     xi_ref = calculate_xi_wpos(x_ref, model)
 
@@ -625,8 +585,6 @@ if __name__ == '__main__':
     for step in range(max_timesteps-1):
         if step != 0:
             full_start_time = time.time()
-    #for step in range(range_val):
-        #print("Timestep: ",step)
         conduit_traj_ref = conduit_traj[step,:]
         if step <  range_val-T:
             conduit_traj_ref_arr = conduit_traj[step:step+T+1,:]
@@ -638,8 +596,6 @@ if __name__ == '__main__':
             # Convert the velocities to be in the body frame
             xi_ref = calculate_xi_wpos(conduit_traj_ref_arr, model)
 
-        # if step % 10 == 0:
-        #     #print('Step:', step)
         if kmpc_run:
             theta = xi[2]
             #xi = xi_nospeed
@@ -650,8 +606,6 @@ if __name__ == '__main__':
                 kmpc_times.append(kmpc_end_time-kmpc_start_time)
             else:
                 control, xi_pred, objval, opt_status, m, u, x_var, x0_constr, z_constr_arr = mpc_gurobi_create_model(xi, xi_ref,A=A,B=B, DEBUG=False,Q_base=Q,R_base=R)
-
-            #control, objval, opt_status = mpc_gurobi_original(xi, xi_ref, A=A, B=B, DEBUG=False,Q_base=Q,R_base=R,env=env)
 
             control = control[0]
             control_old = control
@@ -706,11 +660,7 @@ if __name__ == '__main__':
     # Plot the system's trajectory of the 12 states in subplots
     state_data = np.array(state_data)
     print("state data shape:", state_data.shape)
-    #xi_data = np.array(xi_data)
-    #res_arr = np.array(res_arr)
     pusher.animate_trajectory_comparison(pusher.Convert_to_xy(list(state_data)), conduit_traj, dt, SAVE=SAVE,str=dir,lims=[-0.1,0.55,-0.1,0.55])
-
-    #pusher.animate_trajectory(pusher.Convert_to_xy(list(state_data)), dt, SAVE=SAVE,str=dir,lims=[-0.1,0.5,-0.1,0.1])
     state_pred_arr = []
     for pred in xi_pred_arr:
         if pred is not None:
@@ -718,7 +668,6 @@ if __name__ == '__main__':
         else:
             state_pred_arr.append(np.zeros((xi_pred_arr[0].shape[0],num_states+2)))
 
-    #pusher.animate_comparison_with_prediction(pusher.Convert_to_xy(list(state_data)), conduit_traj, state_pred_arr,dt, SAVE=SAVE,str=dir,lims=[-0.1,0.5,-0.1,0.1])
     fig, axs = plt.subplots(4,3, figsize=(15, 10))
     fig.suptitle('System States')
     for i in range(num_states+2):
@@ -729,7 +678,6 @@ if __name__ == '__main__':
         # Plot when the state was uncontrolled
         for uncontrolled_step in UNCONTROLLED_LIST:
             axs[i//3, i%3].axvline(x=uncontrolled_step, color='g', linestyle='dotted')
-    #plt.show()
     if SAVE:
         plt.savefig(dir+'state_plot.png')
     plt.show()
@@ -772,9 +720,10 @@ if __name__ == '__main__':
     np.save(dir+'kmpc_times.npy', kmpc_times)
     np.save(dir+'full_times.npy', full_times)
     plt.figure()
-    sns.violinplot([full_times, kmpc_times])
+    sns.violinplot([full_times])
     plt.title('Square Pusher Runtimes')
     plt.ylabel('Time (s)')
-    plt.legend(['Full','KMPC'])
+    if SAVE:
+        plt.savefig(dir+'runtime_violinplot.png')
     plt.show()
     print("Done.")
